@@ -229,7 +229,7 @@
 <!-- JOIN SCREEN -->
 <div id="joinScreen" class="center-screen">
   <div class="brand">🂡 Family Rummy</div>
-  <div class="brand-sub">Stage 3 test build · rev 2 (drag fix + real cards)</div>
+  <div class="brand-sub">Stage 3 test build · rev 3 (drag actually fixed, flexible table)</div>
   <div class="card-panel">
     <label for="nameInput">Your name</label>
     <input id="nameInput" type="text" maxlength="20" placeholder="e.g. Dad">
@@ -240,6 +240,15 @@
       <option value="4">4 players</option>
       <option value="5">5 players</option>
       <option value="6">6 players</option>
+      <option value="7">7 players</option>
+      <option value="8">8 players</option>
+      <option value="9">9 players</option>
+      <option value="10">10 players</option>
+    </select>
+    <label for="cutJokerInput">Cut wild-joker (also only matters if you're first to join)</label>
+    <select id="cutJokerInput">
+      <option value="yes" selected>Yes — turn up a wild rank each round</option>
+      <option value="no">No — only printed jokers are wild</option>
     </select>
     <button class="primary full" id="joinBtn">Join Table</button>
   </div>
@@ -262,6 +271,15 @@
       <option value="4">4 players</option>
       <option value="5">5 players</option>
       <option value="6">6 players</option>
+      <option value="7">7 players</option>
+      <option value="8">8 players</option>
+      <option value="9">9 players</option>
+      <option value="10">10 players</option>
+    </select>
+    <label for="hostCutJoker">Cut wild-joker</label>
+    <select id="hostCutJoker" style="max-width:320px;">
+      <option value="yes">Yes — turn up a wild rank each round</option>
+      <option value="no">No — only printed jokers are wild</option>
     </select>
     <button class="primary" id="startBtn" style="display:none;">Start Game</button>
   </div>
@@ -368,6 +386,7 @@ $('joinBtn').onclick = () => {
   const name = $('nameInput').value.trim() || 'Player';
   localStorage.setItem(NAME_KEY, name);
   socket.emit('setTableSize', Number($('tableSizeInput').value));
+  socket.emit('setCutJokerEnabled', $('cutJokerInput').value === 'yes');
   socket.emit('join', { name, token: myToken });
 };
 
@@ -393,6 +412,7 @@ $('resetLink').onclick = $('resetLink2').onclick = () => {
 
 // ---------- Lobby actions ----------
 $('hostTableSize').onchange = (e) => socket.emit('setTableSize', Number(e.target.value));
+$('hostCutJoker').onchange = (e) => socket.emit('setCutJokerEnabled', e.target.value === 'yes');
 $('startBtn').onclick = () => socket.emit('startGame');
 
 // ---------- Game actions ----------
@@ -509,10 +529,13 @@ function render(){
     $('lobbyPlayers').innerHTML = state.players.map(p =>
       `<span class="player-chip"><span class="dot ${p.connected?'':'off'}"></span>${p.name}</span>`
     ).join('') || '<span style="opacity:0.6;">Nobody yet — waiting for the host.</span>';
-    $('lobbyCountText').textContent = `${state.players.length} of ${state.tableSize} players have joined.`;
+    $('lobbyCountText').textContent = `${state.players.length} of ${state.tableSize} players have joined. Cut wild-joker: ${state.cutJokerEnabled ? 'on' : 'off'}.`;
 
     $('hostControls').style.display = state.youAreHost ? 'block' : 'none';
-    if (state.youAreHost) $('hostTableSize').value = state.tableSize;
+    if (state.youAreHost) {
+      $('hostTableSize').value = state.tableSize;
+      $('hostCutJoker').value = state.cutJokerEnabled ? 'yes' : 'no';
+    }
     $('startBtn').style.display = (state.youAreHost && state.canStart) ? 'inline-block' : 'none';
     return;
   }
@@ -563,14 +586,12 @@ function render(){
   $('dropBtn').disabled = !canAct;
   $('discardBtn').style.display = (canAct && state.hasDrawnThisTurn) ? 'inline-block' : 'none';
   $('submitDeclareBtn').style.display = (canAct && state.hasDrawnThisTurn) ? 'inline-block' : 'none';
-  $('declareArea').style.display = (canAct && state.hasDrawnThisTurn) ? 'block' : 'none';
 
   renderHandAndGroups();
 }
 
 function renderHandAndGroups(){
   const hand = state.yourHand || [];
-  const canArrange = state.yourTurn && state.hasDrawnThisTurn && !state.roundOver;
   const groupedIds = new Set(clientGroups.flatMap(g => g.cardIds));
 
   const handZone = $('handZone');
@@ -581,16 +602,12 @@ function renderHandAndGroups(){
     handZone.appendChild(hint);
   }
   handCards.forEach(c => {
-    const el = renderCardEl(c, { large:true, selectable:true, draggable: canArrange, selected: c.id===selectedCardId });
+    const el = renderCardEl(c, { large:true, selectable:true, draggable: true, selected: c.id===selectedCardId });
     el.onclick = () => { selectedCardId = (selectedCardId===c.id)?null:c.id; render(); };
-    if (canArrange) attachDrag(el, c.id);
+    attachDrag(el, c.id);
     handZone.appendChild(el);
   });
 
-  if (!canArrange){
-    $('declareArea').style.display = 'none';
-    return;
-  }
   $('declareArea').style.display = 'block';
 
   const finishZone = $('finishZone');
