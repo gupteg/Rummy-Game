@@ -30,7 +30,6 @@ let table = null;
 function freshTable() {
   return {
     players: [],      // { token, socketId, name, hand, connected, falseDeclareCount, dropped, dropScore }
-    tableSize: 3,      // desired number of players; host can change before start
     cutJokerEnabled: true, // host can turn the cut wild-joker off before start (default: on, per rules spec)
     deck: [],
     discardPile: [],
@@ -95,9 +94,8 @@ function stateFor(socketId) {
       started: false,
       players: table.players.map(publicPlayer),
       youAreHost: table.players[0] && table.players[0].socketId === socketId,
-      tableSize: table.tableSize,
       cutJokerEnabled: table.cutJokerEnabled,
-      canStart: table.players.length === table.tableSize,
+      canStart: table.players.length >= MIN_PLAYERS,
       maxPlayers: MAX_PLAYERS,
       minPlayers: MIN_PLAYERS,
       log: table.log,
@@ -215,8 +213,8 @@ io.on('connection', (socket) => {
       socket.emit('errorMsg', 'A game is already in progress on this table. If you were already playing, reopening this same link on the same device should reconnect you automatically. If the table seems stuck, the host can use "Reset Table."');
       return;
     }
-    if (table.players.length >= table.tableSize) {
-      socket.emit('errorMsg', `This table is set for ${table.tableSize} players and is full.`);
+    if (table.players.length >= MAX_PLAYERS) {
+      socket.emit('errorMsg', `This table already has the maximum of ${MAX_PLAYERS} players.`);
       return;
     }
     const newToken = makeToken();
@@ -229,14 +227,6 @@ io.on('connection', (socket) => {
     broadcastState();
   });
 
-  socket.on('setTableSize', (n) => {
-    if (table.started) return;
-    if (table.players.length > 0 && table.players[0]?.socketId !== socket.id) return;
-    const size = Math.max(MIN_PLAYERS, Math.min(MAX_PLAYERS, Number(n) || 3));
-    table.tableSize = size;
-    broadcastState();
-  });
-
   socket.on('setCutJokerEnabled', (enabled) => {
     if (table.started) return;
     if (table.players.length > 0 && table.players[0]?.socketId !== socket.id) return;
@@ -246,7 +236,6 @@ io.on('connection', (socket) => {
 
   socket.on('startGame', () => {
     if (table.players[0]?.socketId !== socket.id) return;
-    if (table.players.length !== table.tableSize) return;
     if (table.players.length < MIN_PLAYERS) return;
     startRound();
   });
