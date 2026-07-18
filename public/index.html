@@ -187,7 +187,7 @@ function render() {
   if (!state.started) {
     $('lobbyBox').style.display = 'block';
     $('gameBox').style.display = 'none';
-    $('lobbyStatus').textContent = `Players at this table: ${state.players.map(p=>p.name).join(', ') || '(none yet)'} (${state.players.length}/2)`;
+    $('lobbyStatus').textContent = `Players at this table: ${state.players.map(p=>p.name).join(', ') || '(none yet)'} (${state.players.length}/${state.maxPlayers})`;
     $('startBtn').style.display = (state.youAreHost && state.canStart) ? 'inline-block' : 'none';
     renderLog(state.log);
     return;
