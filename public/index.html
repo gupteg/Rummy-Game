@@ -107,8 +107,20 @@
   .player-badge.dropped{ opacity:0.5; text-decoration:line-through; }
   .player-badge .off{ color:var(--bad); font-size:11px; }
 
-  #middleRow{ display:flex; gap:24px; align-items:center; justify-content:center; margin:18px 0; flex-wrap:wrap; }
+  #middleRow{ display:flex; gap:20px; align-items:flex-start; justify-content:center; margin:18px 0; flex-wrap:wrap; }
   .pile{ text-align:center; }
+  .pile-slot{
+    background:rgba(0,0,0,0.18); border:1px solid var(--line); border-radius:10px;
+    padding:10px; min-width:76px; min-height:100px;
+    display:flex; align-items:center; justify-content:center;
+    transition:background 0.15s, border-color 0.15s;
+  }
+  .pile-slot.drag-over{ background:rgba(192,138,52,0.18); border-color:var(--brass); }
+  .pile-placeholder{
+    width:56px; height:80px; border-radius:6px; border:1.5px dashed rgba(255,255,255,0.3);
+    display:flex; align-items:center; justify-content:center; text-align:center;
+    font-size:10.5px; color:var(--cream); opacity:0.55; padding:4px; line-height:1.3;
+  }
   .pile-label{ font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:var(--brass-light); margin-bottom:6px; }
 
   .playing-card{
@@ -229,27 +241,10 @@
 <!-- JOIN SCREEN -->
 <div id="joinScreen" class="center-screen">
   <div class="brand">🂡 Family Rummy</div>
-  <div class="brand-sub">Stage 3 test build · rev 3 (drag actually fixed, flexible table)</div>
+  <div class="brand-sub">Stage 3 test build · rev 4 (open lobby, real reorder + discard, click vs drag)</div>
   <div class="card-panel">
     <label for="nameInput">Your name</label>
     <input id="nameInput" type="text" maxlength="20" placeholder="e.g. Dad">
-    <label for="tableSizeInput">Table size (only matters if you're first to join)</label>
-    <select id="tableSizeInput">
-      <option value="2">2 players</option>
-      <option value="3" selected>3 players</option>
-      <option value="4">4 players</option>
-      <option value="5">5 players</option>
-      <option value="6">6 players</option>
-      <option value="7">7 players</option>
-      <option value="8">8 players</option>
-      <option value="9">9 players</option>
-      <option value="10">10 players</option>
-    </select>
-    <label for="cutJokerInput">Cut wild-joker (also only matters if you're first to join)</label>
-    <select id="cutJokerInput">
-      <option value="yes" selected>Yes — turn up a wild rank each round</option>
-      <option value="no">No — only printed jokers are wild</option>
-    </select>
     <button class="primary full" id="joinBtn">Join Table</button>
   </div>
 </div>
@@ -260,28 +255,20 @@
     <div class="brand">🂡 Family Rummy</div>
     <button id="resetLink">Reset table</button>
   </div>
-  <h2 style="margin:20px 0 10px;">Waiting for players</h2>
+  <h2 style="margin:20px 0 10px;">Lobby — open until the host starts</h2>
   <div class="row" id="lobbyPlayers" style="margin-bottom:16px;"></div>
   <p id="lobbyCountText" style="opacity:0.8; font-size:14px;"></p>
-  <div id="hostControls" style="display:none; margin-top:10px;">
-    <label for="hostTableSize">Table size</label>
-    <select id="hostTableSize" style="max-width:220px;">
-      <option value="2">2 players</option>
-      <option value="3">3 players</option>
-      <option value="4">4 players</option>
-      <option value="5">5 players</option>
-      <option value="6">6 players</option>
-      <option value="7">7 players</option>
-      <option value="8">8 players</option>
-      <option value="9">9 players</option>
-      <option value="10">10 players</option>
-    </select>
+
+  <div id="hostControls" style="display:none; margin-top:14px;">
     <label for="hostCutJoker">Cut wild-joker</label>
     <select id="hostCutJoker" style="max-width:320px;">
       <option value="yes">Yes — turn up a wild rank each round</option>
       <option value="no">No — only printed jokers are wild</option>
     </select>
     <button class="primary" id="startBtn" style="display:none;">Start Game</button>
+  </div>
+  <div id="nonHostNote" style="display:none; opacity:0.75; font-size:13.5px; margin-top:10px;">
+    Waiting for the host to start the game. More players can still join.
   </div>
 </div>
 
@@ -299,16 +286,16 @@
   <div id="middleRow">
     <div class="pile">
       <div class="pile-label">Cut Joker</div>
-      <div id="cutJokerPile"></div>
+      <div class="pile-slot" id="cutJokerPile"></div>
     </div>
     <div class="pile">
       <div class="pile-label">Stock</div>
-      <div id="stockPile"></div>
+      <div class="pile-slot" id="stockPile"></div>
       <div class="stack-count" id="stockCountLabel"></div>
     </div>
     <div class="pile">
-      <div class="pile-label">Discard</div>
-      <div id="discardPile"></div>
+      <div class="pile-label">Discard — drag a card here to discard it</div>
+      <div class="pile-slot" id="discardPile" data-zone="discard"></div>
     </div>
   </div>
 
@@ -368,6 +355,7 @@ let clientGroups = [];          // array of {localId, cardIds:[]}
 let finishCardId = null;
 let nextLocalGroupId = 1;
 let isDragging = false;         // guards against re-rendering out from under an active drag
+let handOrder = [];             // cardIds in the order the player has arranged their hand
 
 const SUITS = { S:'♠', H:'♥', D:'♦', C:'♣' };
 
@@ -385,8 +373,6 @@ function showToast(msg, isError){
 $('joinBtn').onclick = () => {
   const name = $('nameInput').value.trim() || 'Player';
   localStorage.setItem(NAME_KEY, name);
-  socket.emit('setTableSize', Number($('tableSizeInput').value));
-  socket.emit('setCutJokerEnabled', $('cutJokerInput').value === 'yes');
   socket.emit('join', { name, token: myToken });
 };
 
@@ -411,7 +397,6 @@ $('resetLink').onclick = $('resetLink2').onclick = () => {
 };
 
 // ---------- Lobby actions ----------
-$('hostTableSize').onchange = (e) => socket.emit('setTableSize', Number(e.target.value));
 $('hostCutJoker').onchange = (e) => socket.emit('setCutJokerEnabled', e.target.value === 'yes');
 $('startBtn').onclick = () => socket.emit('startGame');
 
@@ -529,11 +514,11 @@ function render(){
     $('lobbyPlayers').innerHTML = state.players.map(p =>
       `<span class="player-chip"><span class="dot ${p.connected?'':'off'}"></span>${p.name}</span>`
     ).join('') || '<span style="opacity:0.6;">Nobody yet — waiting for the host.</span>';
-    $('lobbyCountText').textContent = `${state.players.length} of ${state.tableSize} players have joined. Cut wild-joker: ${state.cutJokerEnabled ? 'on' : 'off'}.`;
+    $('lobbyCountText').textContent = `${state.players.length} player${state.players.length===1?'':'s'} joined. Cut wild-joker: ${state.cutJokerEnabled ? 'on' : 'off'}.`;
 
     $('hostControls').style.display = state.youAreHost ? 'block' : 'none';
+    $('nonHostNote').style.display = (!state.youAreHost && state.players.length > 0) ? 'block' : 'none';
     if (state.youAreHost) {
-      $('hostTableSize').value = state.tableSize;
       $('hostCutJoker').value = state.cutJokerEnabled ? 'yes' : 'no';
     }
     $('startBtn').style.display = (state.youAreHost && state.canStart) ? 'inline-block' : 'none';
@@ -566,7 +551,13 @@ function render(){
 
   // Cut joker
   $('cutJokerPile').innerHTML = '';
-  if (state.cutJokerCard) $('cutJokerPile').appendChild(renderCardEl(state.cutJokerCard));
+  if (state.cutJokerCard) {
+    $('cutJokerPile').appendChild(renderCardEl(state.cutJokerCard));
+  } else {
+    const ph = document.createElement('div'); ph.className = 'pile-placeholder';
+    ph.textContent = 'No cut joker this round';
+    $('cutJokerPile').appendChild(ph);
+  }
 
   // Stock
   $('stockPile').innerHTML = '';
@@ -575,8 +566,13 @@ function render(){
 
   // Discard
   $('discardPile').innerHTML = '';
-  if (state.discardTop) $('discardPile').appendChild(renderCardEl(state.discardTop));
-  else { const e = document.createElement('div'); e.className='zone-empty-hint'; e.textContent='(empty)'; $('discardPile').appendChild(e); }
+  if (state.discardTop) {
+    $('discardPile').appendChild(renderCardEl(state.discardTop));
+  } else {
+    const ph = document.createElement('div'); ph.className = 'pile-placeholder';
+    ph.textContent = 'Empty';
+    $('discardPile').appendChild(ph);
+  }
 
   $('turnLabel').textContent = state.roundOver ? 'Round over.' : (state.yourTurn ? 'Your turn' : `Waiting for ${state.currentPlayerName}…`);
 
@@ -590,21 +586,30 @@ function render(){
   renderHandAndGroups();
 }
 
+function reconcileHandOrder(hand){
+  const idsInHand = new Set(hand.map(c => c.id));
+  handOrder = handOrder.filter(id => idsInHand.has(id));
+  hand.forEach(c => { if (!handOrder.includes(c.id)) handOrder.push(c.id); });
+}
+
 function renderHandAndGroups(){
   const hand = state.yourHand || [];
+  reconcileHandOrder(hand);
+  const cardById = {};
+  hand.forEach(c => { cardById[c.id] = c; });
   const groupedIds = new Set(clientGroups.flatMap(g => g.cardIds));
 
   const handZone = $('handZone');
   handZone.innerHTML = '';
-  const handCards = hand.filter(c => c.id !== finishCardId && !groupedIds.has(c.id));
-  if (handCards.length === 0){
+  const handCardIds = handOrder.filter(id => id !== finishCardId && !groupedIds.has(id) && cardById[id]);
+  if (handCardIds.length === 0){
     const hint = document.createElement('div'); hint.className='zone-empty-hint'; hint.textContent='(no cards here)';
     handZone.appendChild(hint);
   }
-  handCards.forEach(c => {
-    const el = renderCardEl(c, { large:true, selectable:true, draggable: true, selected: c.id===selectedCardId });
-    el.onclick = () => { selectedCardId = (selectedCardId===c.id)?null:c.id; render(); };
-    attachDrag(el, c.id);
+  handCardIds.forEach(id => {
+    const c = cardById[id];
+    const el = renderCardEl(c, { large:true, selectable:true, draggable: true, selected: id===selectedCardId });
+    attachDrag(el, id);
     handZone.appendChild(el);
   });
 
@@ -716,10 +721,46 @@ function evaluateGroupClientSide(cards, cutJokerRank){
 }
 
 // ---------- Drag and drop (pointer-events based, works for mouse and touch) ----------
+// A pointerdown alone is NOT a drag — only real movement past a small
+// threshold starts one. A pointerdown+up with no meaningful movement is a
+// tap, which toggles selection instead. This matches how tapping a card
+// in a normal card game app behaves.
+const DRAG_THRESHOLD_PX = 6;
+
 function attachDrag(el, cardId){
   el.addEventListener('pointerdown', (ev) => {
-    ev.preventDefault();
-    startDrag(cardId, ev.clientX, ev.clientY, el);
+    const startX = ev.clientX, startY = ev.clientY;
+    let dragStarted = false;
+
+    function onMove(moveEv){
+      if (dragStarted) return;
+      const dx = moveEv.clientX - startX, dy = moveEv.clientY - startY;
+      if (Math.hypot(dx, dy) > DRAG_THRESHOLD_PX){
+        dragStarted = true;
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        document.removeEventListener('pointercancel', onCancel);
+        startDrag(cardId, moveEv.clientX, moveEv.clientY, el);
+      }
+    }
+    function onUp(){
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onCancel);
+      if (!dragStarted){
+        // A plain tap: toggle selection, don't drag.
+        selectedCardId = (selectedCardId === cardId) ? null : cardId;
+        render();
+      }
+    }
+    function onCancel(){
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onCancel);
+    }
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onCancel);
   });
 }
 
@@ -756,14 +797,15 @@ function startDrag(cardId, startX, startY, sourceEl){
     document.removeEventListener('pointermove', onMove);
     document.removeEventListener('pointerup', onUp);
     document.removeEventListener('pointercancel', onUp);
+    const dropX = ev.clientX, dropY = ev.clientY;
     ghost.remove();
     sourceEl.classList.remove('dragging');
     if (currentZoneEl) currentZoneEl.classList.remove('drag-over');
     isDragging = false;
 
-    const zoneEl = findZoneAt(ev.clientX, ev.clientY);
+    const zoneEl = findZoneAt(dropX, dropY);
     if (zoneEl){
-      applyDrop(cardId, zoneEl.dataset.zone, zoneEl.dataset.groupId ? Number(zoneEl.dataset.groupId) : null);
+      applyDrop(cardId, zoneEl.dataset.zone, zoneEl.dataset.groupId ? Number(zoneEl.dataset.groupId) : null, dropX);
     } else if (state) {
       render(); // pointer released outside any zone — just re-sync the view
     }
@@ -773,18 +815,47 @@ function startDrag(cardId, startX, startY, sourceEl){
   document.addEventListener('pointercancel', onUp);
 }
 
-function applyDrop(cardId, zoneType, groupLocalId){
-  // Remove this card from wherever it currently is.
+// Figures out where in the hand a card should land based on the X position
+// it was dropped at, relative to the other cards currently shown in the hand.
+function computeHandInsertIndex(dropX, excludeCardId){
+  const handZone = $('handZone');
+  const cardEls = [...handZone.querySelectorAll('.playing-card')].filter(el => el.dataset.cardId !== String(excludeCardId));
+  for (let i = 0; i < cardEls.length; i++){
+    const rect = cardEls[i].getBoundingClientRect();
+    const center = rect.left + rect.width / 2;
+    if (dropX < center){
+      const id = Number(cardEls[i].dataset.cardId);
+      return handOrder.indexOf(id);
+    }
+  }
+  return handOrder.length; // dropped past the last card — goes at the end
+}
+
+function applyDrop(cardId, zoneType, groupLocalId, dropX){
+  if (zoneType === 'discard'){
+    if (!(state && state.yourTurn && state.hasDrawnThisTurn && !state.roundOver)){
+      showToast('You can only discard on your turn, after drawing.', true);
+      render();
+      return;
+    }
+    socket.emit('discard', { cardId });
+    return;
+  }
+
+  // Remove this card from wherever it currently is (a group, or the finish slot).
   clientGroups.forEach(g => { g.cardIds = g.cardIds.filter(id => id !== cardId); });
   if (finishCardId === cardId) finishCardId = null;
+  handOrder = handOrder.filter(id => id !== cardId);
 
   if (zoneType === 'finish'){
     finishCardId = cardId;
   } else if (zoneType === 'group'){
     const g = clientGroups.find(g => g.localId === groupLocalId);
     if (g) g.cardIds.push(cardId);
+  } else if (zoneType === 'hand'){
+    const insertAt = computeHandInsertIndex(dropX, cardId);
+    handOrder.splice(insertAt, 0, cardId);
   }
-  // zoneType === 'hand' -> already removed above, nothing more to do.
   render();
 }
 </script>
