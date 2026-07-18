@@ -16,7 +16,7 @@ app.use(express.static('public'));
 
 const RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
 const SUITS = ['S','H','D','C'];
-const MAX_PLAYERS = 2; // Stage 2: two people only. More players comes in Stage 3.
+const MAX_PLAYERS = 3; // Stage 2 test: now supports up to three people.
 const HAND_SIZE = 13;
 const DROP_PENALTY_FIRST_TURN = 10;
 const DROP_PENALTY_LATER = 40;
@@ -78,6 +78,7 @@ function stateFor(socketId) {
       players: table.players.map(publicPlayer),
       youAreHost: table.players[0] && table.players[0].id === socketId,
       canStart: table.players.length === MAX_PLAYERS,
+      maxPlayers: MAX_PLAYERS,
       log: table.log,
     };
   }
@@ -177,7 +178,7 @@ io.on('connection', (socket) => {
       return;
     }
     if (table.players.length >= MAX_PLAYERS) {
-      socket.emit('errorMsg', 'This table already has two players (Stage 2 is two-player only).');
+      socket.emit('errorMsg', `This table already has ${MAX_PLAYERS} players.`);
       return;
     }
     table.players.push({
