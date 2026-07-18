@@ -18,7 +18,7 @@ app.use(express.static('public'));
 const RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
 const SUITS = ['S','H','D','C'];
 const MIN_PLAYERS = 2;
-const MAX_PLAYERS = 6;
+const MAX_PLAYERS = 10;
 const HAND_SIZE = 13;
 const DROP_PENALTY_FIRST_TURN = 10;
 const DROP_PENALTY_LATER = 40;
@@ -31,6 +31,7 @@ function freshTable() {
   return {
     players: [],      // { token, socketId, name, hand, connected, falseDeclareCount, dropped, dropScore }
     tableSize: 3,      // desired number of players; host can change before start
+    cutJokerEnabled: true, // host can turn the cut wild-joker off before start (default: on, per rules spec)
     deck: [],
     discardPile: [],
     cutJokerRank: null,
@@ -45,7 +46,7 @@ function freshTable() {
 table = freshTable();
 
 function makeDeck(numPlayers) {
-  const numDecks = numPlayers >= 4 ? 2 : 1; // matches the rules spec: 2 decks for 4-6 players
+  const numDecks = numPlayers >= 7 ? 3 : numPlayers >= 4 ? 2 : 1; // matches the rules spec
   const cards = [];
   let id = 1;
   for (let d = 0; d < numDecks; d++) {
@@ -95,7 +96,10 @@ function stateFor(socketId) {
       players: table.players.map(publicPlayer),
       youAreHost: table.players[0] && table.players[0].socketId === socketId,
       tableSize: table.tableSize,
+      cutJokerEnabled: table.cutJokerEnabled,
       canStart: table.players.length === table.tableSize,
+      maxPlayers: MAX_PLAYERS,
+      minPlayers: MIN_PLAYERS,
       log: table.log,
       yourToken: me ? me.token : null,
     };
@@ -169,16 +173,20 @@ function startRound() {
   for (let i = 0; i < HAND_SIZE; i++) {
     table.players.forEach(p => p.hand.push(deck.pop()));
   }
-  const indicator = deck.pop();
+  let indicator = null;
+  if (table.cutJokerEnabled) {
+    indicator = deck.pop();
+  }
   table.cutJokerCard = indicator;
-  table.cutJokerRank = indicator.isPrintedJoker ? null : indicator.rank;
+  table.cutJokerRank = (indicator && !indicator.isPrintedJoker) ? indicator.rank : null;
   table.deck = deck;
   table.discardPile = [];
   table.turnIndex = 0;
   table.started = true;
   table.roundOver = false;
   table.hasDrawnThisTurn = false;
-  log(`New round dealt (${table.players.length} players, ${deck.length >= 100 ? 2 : 1} deck(s)). Cut joker rank: ${table.cutJokerRank || 'printed jokers only'}.`);
+  const deckCount = table.players.length >= 7 ? 3 : table.players.length >= 4 ? 2 : 1;
+  log(`New round dealt (${table.players.length} players, ${deckCount} deck(s)). Cut joker: ${table.cutJokerEnabled ? (table.cutJokerRank || 'printed jokers only') : 'off — printed jokers only'}.`);
   broadcastState();
 }
 
@@ -226,6 +234,13 @@ io.on('connection', (socket) => {
     if (table.players.length > 0 && table.players[0]?.socketId !== socket.id) return;
     const size = Math.max(MIN_PLAYERS, Math.min(MAX_PLAYERS, Number(n) || 3));
     table.tableSize = size;
+    broadcastState();
+  });
+
+  socket.on('setCutJokerEnabled', (enabled) => {
+    if (table.started) return;
+    if (table.players.length > 0 && table.players[0]?.socketId !== socket.id) return;
+    table.cutJokerEnabled = !!enabled;
     broadcastState();
   });
 

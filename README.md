@@ -1,4 +1,4 @@
-# Family Rummy — Stage 3, rev 2 (drag fix + real cards)
+# Family Rummy — Stage 3, rev 3
 
 ## Running it
 
@@ -7,46 +7,48 @@ npm install
 npm start
 ```
 
-Open the URL it gives you. Whoever opens it first sets the table size (2–6
-players) and becomes host; share the same link with everyone else.
+Open the URL it gives you. Whoever opens it first chooses the table size
+(2–10 players) and whether the cut wild-joker is on, and becomes host.
+Share the same link with everyone else.
 
 ## What changed in this revision
 
-**Drag now actually works.** There were two problems, both fixed:
+**Drag is fixed for real this time.** The rev 2 fix addressed a genuine
+bug (a redraw could cancel a drag mid-motion), but there was a second,
+more fundamental problem: dragging only worked during the narrow window
+of *your own turn, after you'd drawn*. Every other moment — including
+simply trying it out to see how it feels — silently did nothing, which is
+almost certainly what "drag and drop failed" was actually describing.
+Dragging your hand into groups now works at any time; only pressing
+**Submit Declare** still correctly waits for your turn.
 
-1. Dragging was hidden behind an "Arrange / Declare" button that wasn't
-   obvious to find. Cards can now be dragged directly, any time it's your
-   turn and you've drawn — no mode to discover first.
-2. A real bug: any game update arriving from the server — including your
-   own draw or discard — rebuilt the whole hand on screen, which silently
-   cancelled a drag in progress if it happened to land at the wrong
-   moment. The page now holds off on any redraw while a drag is actively
-   happening, so it can't be pulled out from under your finger.
+**Table size is now 2–10**, matching the rules specification, chosen by
+the host before the game starts (previously capped at 6). Tables of 7 or
+more now correctly deal from three shuffled decks, matching "3 decks for
+7+ players" from the rules spec (4–6 players still use 2 decks, 2–3 still
+use 1).
 
-**Cards look like actual playing cards now.** Number cards (2–10) show the
-correct pip layout — a 7 shows seven suit symbols arranged the way a real
-card does, not one big symbol in the middle. Aces get a single large
-centred pip. Jacks, Queens, and Kings get a bordered face-card treatment
-with the letter and suit. This was checked programmatically: every rank
-from 2 to 10 was verified to render exactly that many pips before this
-went out.
-
-**A visible build tag** now sits under the title on the join screen
-("Stage 3 test build · rev N") specifically so it's obvious at a glance
-whether you're looking at the current version or something stale — this
-fixes the confusion from last time, where a redeploy hadn't actually taken
-effect and it wasn't easy to tell.
+**Cut wild-joker can be turned off.** The host picks "Yes" or "No" before
+starting. When off, no card is turned up as a wild rank at all — only
+printed jokers are wild that round, exactly as the rules specification
+describes.
 
 ## What I tested before sending this
 
-- All 14 server-side automated checks from the previous revision still
-  pass unchanged (reconnection, table reset, skipping a disconnected
-  player's turn, multi-deck dealing).
-- The pip layout for every number rank (2 through 10) was verified by code
-  to contain the correct pip count.
-- The drag fix itself — the actual feel of dragging a card on a real
-  screen — still needs your hands to confirm. That's what I can't test
-  from here.
+All 20 automated checks now pass, run against the real running server:
+
+- The 12 reconnection/reset/skip-turn checks from rev 1, unchanged.
+- The 2 multi-deck checks from rev 2, unchanged (4 players → 2 decks).
+- 6 new checks: 7 players correctly deal from 3 decks; the cut-joker
+  toggle is reflected in the lobby before start; turning it off means no
+  indicator card and no wild rank; turning it on (the default) still
+  works as before.
+
+What I still can't test from here is the actual feel of dragging on a
+real screen — that's what your next round is for. If it still doesn't
+work, the very first thing to check is whether the join screen says
+**"rev 3"** — if it doesn't, the new version hasn't actually deployed yet,
+and nothing below matters until it has.
 
 ## What's still deliberately not here
 
@@ -54,7 +56,5 @@ effect and it wasn't easy to tell.
   always host.
 - No turn timer.
 - No cumulative scoring across multiple rounds.
-- No host settings panel (deck count is automatic, jokers fixed at 2 per
-  deck, exclusion scoring rule not yet wired in).
-- Up to 6 players, not the full 10 from the rules spec.
-
+- No number-of-jokers-per-deck setting, and no exclusion-scoring toggle
+  yet (both named in the rules spec, both still to come).
