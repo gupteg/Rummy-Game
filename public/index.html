@@ -114,13 +114,36 @@
     padding:10px; min-width:76px; min-height:100px;
     display:flex; align-items:center; justify-content:center;
     transition:background 0.15s, border-color 0.15s;
+    cursor:default;
   }
+  .pile-slot.xl{ min-width:108px; min-height:148px; padding:14px; }
+  .pile-slot.clickable{ cursor:pointer; }
+  .pile-slot.clickable:hover{ border-color:var(--brass); }
   .pile-slot.drag-over{ background:rgba(192,138,52,0.18); border-color:var(--brass); }
   .pile-placeholder{
     width:56px; height:80px; border-radius:6px; border:1.5px dashed rgba(255,255,255,0.3);
     display:flex; align-items:center; justify-content:center; text-align:center;
     font-size:10.5px; color:var(--cream); opacity:0.55; padding:4px; line-height:1.3;
   }
+  .pile-slot.xl .pile-placeholder{ width:80px; height:114px; font-size:12px; }
+
+  #turnLabel{
+    text-align:center; font-weight:700; margin-bottom:10px; font-size:15px;
+    padding:8px; border-radius:8px;
+  }
+  #turnLabel.your-turn{
+    animation:turnPulse 1.4s ease-in-out infinite;
+    color:var(--felt-dark); background:var(--brass-light);
+  }
+  @keyframes turnPulse{
+    0%,100%{ box-shadow:0 0 0 0 rgba(224,174,92,0.6); }
+    50%{ box-shadow:0 0 0 10px rgba(224,174,92,0); }
+  }
+  @media (prefers-reduced-motion: reduce){
+    #turnLabel.your-turn{ animation:none; }
+  }
+
+  .banner.armed{ background:rgba(161,59,59,0.18); border-color:var(--bad); justify-content:space-between; }
   .pile-label{ font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:var(--brass-light); margin-bottom:6px; }
 
   .playing-card{
@@ -130,27 +153,34 @@
     user-select:none; touch-action:none; flex-shrink:0;
   }
   .playing-card.lg{ width:68px; height:98px; }
+  .playing-card.xl{ width:88px; height:126px; }
   .playing-card .corner{
     position:absolute; font-size:11px; font-weight:700; line-height:1.05; text-align:center;
     font-family:Georgia,serif;
   }
   .playing-card.lg .corner{ font-size:13px; }
+  .playing-card.xl .corner{ font-size:16px; }
   .playing-card .corner.tl{ top:4px; left:4px; }
   .playing-card .corner.br{ bottom:4px; right:4px; transform:rotate(180deg); }
   .playing-card .pip-field{ position:absolute; inset:16px 8px; }
   .playing-card.lg .pip-field{ inset:20px 10px; }
+  .playing-card.xl .pip-field{ inset:26px 14px; }
   .playing-card .pip{ position:absolute; font-size:13px; transform:translate(-50%,-50%); line-height:1; }
   .playing-card.lg .pip{ font-size:16px; }
+  .playing-card.xl .pip{ font-size:20px; }
   .playing-card .pip.rot{ transform:translate(-50%,-50%) rotate(180deg); }
   .playing-card .ace-pip{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:30px; }
   .playing-card.lg .ace-pip{ font-size:36px; }
+  .playing-card.xl .ace-pip{ font-size:46px; }
   .playing-card .face-box{
     position:absolute; inset:14px 8px; border:1.5px solid currentColor; border-radius:4px;
     display:flex; align-items:center; justify-content:center; opacity:0.9;
   }
   .playing-card .face-box .face-letter{ font-family:Georgia,serif; font-size:26px; font-weight:700; }
   .playing-card.lg .face-box .face-letter{ font-size:32px; }
+  .playing-card.xl .face-box .face-letter{ font-size:42px; }
   .playing-card .face-box .face-suit{ font-size:13px; position:absolute; bottom:4px; }
+  .playing-card.xl .face-box .face-suit{ font-size:17px; }
   .playing-card.red{ color:var(--red); }
   .playing-card.black{ color:var(--black); }
   .playing-card.joker{ background:linear-gradient(160deg, var(--brass-light), var(--brass)); color:var(--felt-dark); }
@@ -160,8 +190,10 @@
     font-family:Georgia,serif; font-weight:700; font-size:11px; letter-spacing:1px; text-align:center; gap:2px;
   }
   .playing-card.lg.joker .joker-center{ font-size:13px; }
+  .playing-card.xl.joker .joker-center{ font-size:16px; }
   .playing-card.joker .joker-center .star{ font-size:20px; }
   .playing-card.lg.joker .joker-center .star{ font-size:24px; }
+  .playing-card.xl.joker .joker-center .star{ font-size:30px; }
   .playing-card.facedown{
     background:
       repeating-linear-gradient(45deg, transparent 0 6px, rgba(0,0,0,0.08) 6px 7px),
@@ -171,6 +203,7 @@
   }
   .playing-card.selectable{ cursor:pointer; }
   .playing-card.selected{ outline:3px solid var(--brass-light); outline-offset:2px; }
+  .playing-card.just-drawn{ outline:3px solid #6FBF73; outline-offset:2px; box-shadow:0 0 10px rgba(111,191,115,0.7); }
   .playing-card.draggable{ cursor:grab; }
   .playing-card.dragging{ opacity:0.25; }
   .stack-count{ font-size:12px; margin-top:4px; color:var(--cream); opacity:0.8; }
@@ -196,15 +229,6 @@
   .group-badge.bad{ background:var(--bad-bg); color:var(--bad); }
   .group-badge.empty{ background:rgba(255,255,255,0.1); color:var(--cream); }
   .remove-group-btn{ font-size:11px; padding:2px 8px; background:transparent; color:var(--cream); opacity:0.5; border:1px solid var(--line); }
-
-  /* ---------- Action bar ---------- */
-  #actionBar{
-    position:fixed; bottom:0; left:0; right:0;
-    background:linear-gradient(0deg, rgba(9,26,20,0.97), rgba(9,26,20,0.9));
-    border-top:1px solid var(--line);
-    padding:10px 14px; display:flex; gap:8px; flex-wrap:wrap; justify-content:center;
-    z-index:50;
-  }
 
   /* ---------- Ghost drag element ---------- */
   .drag-ghost{ position:fixed; pointer-events:none; z-index:200; transform:translate(-50%,-50%); }
@@ -241,7 +265,7 @@
 <!-- JOIN SCREEN -->
 <div id="joinScreen" class="center-screen">
   <div class="brand">🂡 Family Rummy</div>
-  <div class="brand-sub">Stage 3 test build · rev 4 (open lobby, real reorder + discard, click vs drag)</div>
+  <div class="brand-sub">Stage 3 test build · rev 5 (declare button, reorder fix, log fix)</div>
   <div class="card-panel">
     <label for="nameInput">Your name</label>
     <input id="nameInput" type="text" maxlength="20" placeholder="e.g. Dad">
@@ -286,48 +310,53 @@
   <div id="middleRow">
     <div class="pile">
       <div class="pile-label">Cut Joker</div>
-      <div class="pile-slot" id="cutJokerPile"></div>
+      <div class="pile-slot xl" id="cutJokerPile"></div>
     </div>
     <div class="pile">
-      <div class="pile-label">Stock</div>
-      <div class="pile-slot" id="stockPile"></div>
+      <div class="pile-label">Stock — tap to draw</div>
+      <div class="pile-slot xl" id="stockPile"></div>
       <div class="stack-count" id="stockCountLabel"></div>
     </div>
     <div class="pile">
-      <div class="pile-label">Discard — drag a card here to discard it</div>
-      <div class="pile-slot" id="discardPile" data-zone="discard"></div>
+      <div class="pile-label">Discard — tap or drag here</div>
+      <div class="pile-slot xl" id="discardPile" data-zone="discard"></div>
     </div>
   </div>
 
-  <div id="turnLabel" style="text-align:center; font-weight:700; margin-bottom:6px;"></div>
+  <div id="turnLabel"></div>
+
+  <div id="declareArmedBanner" class="banner armed" style="display:none;">
+    <span>Your next discard will be checked as a Declare.</span>
+    <button class="secondary" id="cancelDeclareBtn">Cancel</button>
+  </div>
 
   <div id="handSection">
-    <div class="zone-label">Your hand — tap to select a card to discard, or press and drag to arrange for a declare</div>
+    <div class="row" id="drawRow" style="justify-content:center; margin-bottom:10px;">
+      <button class="primary" id="drawStockBtn">Draw from Stock</button>
+      <button class="primary" id="drawDiscardBtn">Draw from Discard</button>
+    </div>
+
+    <div class="zone-label">Your hand — tap a card to select it, or press and drag to move or arrange it</div>
     <div class="zone" id="handZone" data-zone="hand"></div>
 
-    <div id="declareArea" style="display:none;">
-      <div class="zone-label">Finish slot — drag the one card you're discarding here</div>
-      <div class="zone finish-zone" id="finishZone" data-zone="finish"></div>
+    <div class="row" id="handActionRow" style="justify-content:center; margin:10px 0;">
+      <button class="secondary" id="discardBtn" style="display:none;">Discard Selected</button>
+      <button class="primary" id="declareRummyBtn" style="display:none;">Declare Rummy</button>
+      <button class="danger" id="dropBtn">Drop</button>
+      <button class="secondary" id="skipTurnBtn" style="display:none;">Skip disconnected player</button>
+    </div>
 
+    <div id="declareArea">
       <div class="zone-label">Groups</div>
       <div id="groupsContainer"></div>
       <button class="secondary" id="addGroupBtn">+ New group</button>
     </div>
   </div>
 
-  <details id="logDetails">
+  <details id="logDetails" open>
     <summary>Game log</summary>
     <div id="log"></div>
   </details>
-</div>
-
-<div id="actionBar" style="display:none;">
-  <button class="primary" id="drawStockBtn">Draw Stock</button>
-  <button class="primary" id="drawDiscardBtn">Draw Discard</button>
-  <button class="secondary" id="discardBtn" style="display:none;">Discard Selected</button>
-  <button class="primary" id="submitDeclareBtn" style="display:none;">Submit Declare</button>
-  <button class="danger" id="dropBtn">Drop</button>
-  <button class="secondary" id="skipTurnBtn" style="display:none;">Skip disconnected player</button>
 </div>
 
 <div id="roundOverlay">
@@ -352,10 +381,12 @@ $('nameInput').value = localStorage.getItem(NAME_KEY) || '';
 let state = null;
 let selectedCardId = null;      // single-card selection (for discard)
 let clientGroups = [];          // array of {localId, cardIds:[]}
-let finishCardId = null;
+let declareArmed = false;       // true once "Declare Rummy" has been pressed — next discard is judged as a declare
 let nextLocalGroupId = 1;
 let isDragging = false;         // guards against re-rendering out from under an active drag
 let handOrder = [];             // cardIds in the order the player has arranged their hand
+let lastDrawnCardId = null;     // highlights the card that was just drawn, until it's discarded
+let pendingDrawHandIds = null;  // snapshot of hand ids taken right before emitting 'draw', to detect which card arrived
 
 const SUITS = { S:'♠', H:'♥', D:'♦', C:'♣' };
 
@@ -386,7 +417,7 @@ socket.on('errorMsg', (msg) => showToast(msg, true));
 socket.on('tableWasReset', () => {
   myToken = null;
   localStorage.removeItem(TOKEN_KEY);
-  clientGroups = []; finishCardId = null; selectedCardId = null;
+  clientGroups = []; declareArmed = false; selectedCardId = null; handOrder = []; lastDrawnCardId = null;
   showToast('The table was reset.');
 });
 
@@ -401,30 +432,54 @@ $('hostCutJoker').onchange = (e) => socket.emit('setCutJokerEnabled', e.target.v
 $('startBtn').onclick = () => socket.emit('startGame');
 
 // ---------- Game actions ----------
-$('drawStockBtn').onclick = () => socket.emit('draw', { source: 'stock' });
-$('drawDiscardBtn').onclick = () => socket.emit('draw', { source: 'discard' });
+function performDraw(source){
+  if (!state || !(state.yourTurn && !state.hasDrawnThisTurn && !state.roundOver)) return;
+  pendingDrawHandIds = new Set((state.yourHand || []).map(c => c.id));
+  socket.emit('draw', { source });
+}
+$('drawStockBtn').onclick = () => performDraw('stock');
+$('drawDiscardBtn').onclick = () => performDraw('discard');
+$('stockPile').onclick = () => performDraw('stock');
+$('discardPile').addEventListener('click', () => {
+  // A plain tap (not a drag-drop) on the discard pile draws from it, when possible.
+  if (!isDragging) performDraw('discard');
+});
 $('dropBtn').onclick = () => { if (confirm('Drop out of this round?')) socket.emit('drop'); };
 $('skipTurnBtn').onclick = () => socket.emit('skipDisconnectedTurn');
 
+function discardCard(cardId){
+  if (declareArmed){
+    const groups = clientGroups.filter(g => g.cardIds.length > 0).map(g => g.cardIds);
+    socket.emit('declare', { finishCardId: cardId, groups });
+  } else {
+    socket.emit('discard', { cardId });
+  }
+  declareArmed = false;
+  selectedCardId = null;
+}
+
 $('discardBtn').onclick = () => {
   if (!selectedCardId) { showToast('Select a card first.'); return; }
-  socket.emit('discard', { cardId: selectedCardId });
-  selectedCardId = null;
+  discardCard(selectedCardId);
+};
+
+$('declareRummyBtn').onclick = () => {
+  declareArmed = true;
+  render();
+};
+$('cancelDeclareBtn').onclick = () => {
+  declareArmed = false;
+  render();
 };
 
 $('addGroupBtn').onclick = () => {
   clientGroups.push({ localId: nextLocalGroupId++, cardIds: [] });
   render();
 };
-$('submitDeclareBtn').onclick = () => {
-  if (!finishCardId) { showToast('Drag one card into the finish slot first.'); return; }
-  const groups = clientGroups.filter(g => g.cardIds.length > 0).map(g => g.cardIds);
-  socket.emit('declare', { finishCardId, groups });
-};
 
 socket.on('declareRejected', ({ problems }) => {
   showToast('Invalid declare (+80 penalty): ' + problems.join(' '), true);
-  clientGroups = []; finishCardId = null;
+  clientGroups = []; declareArmed = false;
   render();
 });
 
@@ -438,16 +493,9 @@ socket.on('roundEnded', ({ resultText, scoreLines }) => {
 });
 $('playAgainBtn').onclick = () => {
   $('roundOverlay').classList.remove('show');
-  clientGroups = []; finishCardId = null; selectedCardId = null;
+  clientGroups = []; declareArmed = false; selectedCardId = null; handOrder = []; lastDrawnCardId = null;
   socket.emit('playAgain');
 };
-
-// ---------- State handling ----------
-socket.on('state', (s) => {
-  state = s;
-  if (isDragging) return; // never rebuild the DOM out from under an active drag
-  render();
-});
 
 function cardLabel(c){ return c.isPrintedJoker ? 'JOKER' : c.rank; }
 
@@ -468,7 +516,8 @@ const PIP_LAYOUTS = {
 
 function renderCardEl(c, opts={}){
   const el = document.createElement('div');
-  el.className = 'playing-card' + (opts.large ? ' lg' : '') + (c.isPrintedJoker ? ' joker' : ' ' + suitColor(c.suit));
+  const sizeClass = opts.xl ? ' xl' : (opts.large ? ' lg' : '');
+  el.className = 'playing-card' + sizeClass + (c.isPrintedJoker ? ' joker' : ' ' + suitColor(c.suit));
   el.dataset.cardId = c.id;
 
   if (c.isPrintedJoker){
@@ -490,16 +539,34 @@ function renderCardEl(c, opts={}){
   if (opts.selected) el.classList.add('selected');
   if (opts.selectable) el.classList.add('selectable');
   if (opts.draggable) el.classList.add('draggable');
+  if (opts.justDrawn) el.classList.add('just-drawn');
   return el;
 }
 
 function faceDownStack(count){
   const wrap = document.createElement('div');
   const el = document.createElement('div');
-  el.className = 'playing-card facedown lg';
+  el.className = 'playing-card facedown xl';
   wrap.appendChild(el);
   return wrap;
 }
+
+// ---------- State handling ----------
+socket.on('state', (s) => {
+  // If we just emitted a draw, figure out which card is the new arrival so
+  // it can be highlighted — computed from the hand as it was right before
+  // the draw, compared to the hand we just received.
+  if (pendingDrawHandIds && s.yourHand){
+    const newCard = s.yourHand.find(c => !pendingDrawHandIds.has(c.id));
+    if (newCard) lastDrawnCardId = newCard.id;
+    pendingDrawHandIds = null;
+  }
+  if (!s.hasDrawnThisTurn) lastDrawnCardId = null;
+
+  state = s;
+  if (isDragging) return; // never rebuild the DOM out from under an active drag
+  render();
+});
 
 function render(){
   if (!state) return;
@@ -508,7 +575,6 @@ function render(){
     $('joinScreen').style.display = 'none';
     $('lobbyScreen').style.display = 'block';
     $('gameScreen').style.display = 'none';
-    $('actionBar').style.display = 'none';
     $('roundOverlay').classList.remove('show');
 
     $('lobbyPlayers').innerHTML = state.players.map(p =>
@@ -529,7 +595,6 @@ function render(){
   $('joinScreen').style.display = 'none';
   $('lobbyScreen').style.display = 'none';
   $('gameScreen').style.display = 'block';
-  $('actionBar').style.display = 'flex';
 
   // Players strip
   $('playersStrip').innerHTML = state.players.map(p => {
@@ -549,10 +614,13 @@ function render(){
     $('skipTurnBtn').style.display = 'none';
   }
 
+  const canAct = state.yourTurn && !state.roundOver;
+  const canDraw = canAct && !state.hasDrawnThisTurn;
+
   // Cut joker
   $('cutJokerPile').innerHTML = '';
   if (state.cutJokerCard) {
-    $('cutJokerPile').appendChild(renderCardEl(state.cutJokerCard));
+    $('cutJokerPile').appendChild(renderCardEl(state.cutJokerCard, { xl: true }));
   } else {
     const ph = document.createElement('div'); ph.className = 'pile-placeholder';
     ph.textContent = 'No cut joker this round';
@@ -562,26 +630,47 @@ function render(){
   // Stock
   $('stockPile').innerHTML = '';
   $('stockPile').appendChild(faceDownStack(state.stockCount));
+  $('stockPile').classList.toggle('clickable', canDraw && state.stockCount > 0);
   $('stockCountLabel').textContent = state.stockCount + ' left';
 
   // Discard
   $('discardPile').innerHTML = '';
   if (state.discardTop) {
-    $('discardPile').appendChild(renderCardEl(state.discardTop));
+    $('discardPile').appendChild(renderCardEl(state.discardTop, { xl: true }));
   } else {
     const ph = document.createElement('div'); ph.className = 'pile-placeholder';
     ph.textContent = 'Empty';
     $('discardPile').appendChild(ph);
   }
+  $('discardPile').classList.toggle('clickable', canDraw && !!state.discardTop);
 
-  $('turnLabel').textContent = state.roundOver ? 'Round over.' : (state.yourTurn ? 'Your turn' : `Waiting for ${state.currentPlayerName}…`);
+  // Turn banner — flashes while it's genuinely your turn
+  const turnLabelEl = $('turnLabel');
+  if (state.roundOver){
+    turnLabelEl.textContent = 'Round over.';
+    turnLabelEl.classList.remove('your-turn');
+  } else if (state.yourTurn){
+    turnLabelEl.textContent = "It's your turn!";
+    turnLabelEl.classList.add('your-turn');
+  } else {
+    turnLabelEl.textContent = `Waiting for ${state.currentPlayerName}…`;
+    turnLabelEl.classList.remove('your-turn');
+  }
 
-  const canAct = state.yourTurn && !state.roundOver;
-  $('drawStockBtn').disabled = !canAct || state.hasDrawnThisTurn;
-  $('drawDiscardBtn').disabled = !canAct || state.hasDrawnThisTurn || !state.discardTop;
+  // Declare-armed banner
+  $('declareArmedBanner').style.display = (declareArmed && canAct) ? 'flex' : 'none';
+  if (declareArmed && !canAct) declareArmed = false; // turn ended or no longer valid — disarm quietly
+
+  $('drawStockBtn').disabled = !canDraw;
+  $('drawDiscardBtn').disabled = !canDraw || !state.discardTop;
   $('dropBtn').disabled = !canAct;
   $('discardBtn').style.display = (canAct && state.hasDrawnThisTurn) ? 'inline-block' : 'none';
-  $('submitDeclareBtn').style.display = (canAct && state.hasDrawnThisTurn) ? 'inline-block' : 'none';
+  $('declareRummyBtn').style.display = (canAct && state.hasDrawnThisTurn && !declareArmed) ? 'inline-block' : 'none';
+
+  // Game log
+  $('log').textContent = (state.log || []).join('\n');
+  const logBox = $('log');
+  logBox.scrollTop = logBox.scrollHeight;
 
   renderHandAndGroups();
 }
@@ -601,30 +690,17 @@ function renderHandAndGroups(){
 
   const handZone = $('handZone');
   handZone.innerHTML = '';
-  const handCardIds = handOrder.filter(id => id !== finishCardId && !groupedIds.has(id) && cardById[id]);
+  const handCardIds = handOrder.filter(id => !groupedIds.has(id) && cardById[id]);
   if (handCardIds.length === 0){
     const hint = document.createElement('div'); hint.className='zone-empty-hint'; hint.textContent='(no cards here)';
     handZone.appendChild(hint);
   }
   handCardIds.forEach(id => {
     const c = cardById[id];
-    const el = renderCardEl(c, { large:true, selectable:true, draggable: true, selected: id===selectedCardId });
+    const el = renderCardEl(c, { large:true, selectable:true, draggable: true, selected: id===selectedCardId, justDrawn: id===lastDrawnCardId });
     attachDrag(el, id);
     handZone.appendChild(el);
   });
-
-  $('declareArea').style.display = 'block';
-
-  const finishZone = $('finishZone');
-  finishZone.innerHTML = '';
-  finishZone.classList.toggle('filled', !!finishCardId);
-  if (finishCardId){
-    const c = hand.find(x => x.id === finishCardId);
-    if (c){ const el = renderCardEl(c, { large:true, draggable:true }); attachDrag(el, c.id); finishZone.appendChild(el); }
-  } else {
-    const hint = document.createElement('div'); hint.className='zone-empty-hint'; hint.textContent='Drag a card here to discard it as part of your declare';
-    finishZone.appendChild(hint);
-  }
 
   const container = $('groupsContainer');
   container.innerHTML = '';
@@ -805,7 +881,7 @@ function startDrag(cardId, startX, startY, sourceEl){
 
     const zoneEl = findZoneAt(dropX, dropY);
     if (zoneEl){
-      applyDrop(cardId, zoneEl.dataset.zone, zoneEl.dataset.groupId ? Number(zoneEl.dataset.groupId) : null, dropX);
+      applyDrop(cardId, zoneEl.dataset.zone, zoneEl.dataset.groupId ? Number(zoneEl.dataset.groupId) : null, dropX, dropY);
     } else if (state) {
       render(); // pointer released outside any zone — just re-sync the view
     }
@@ -815,45 +891,52 @@ function startDrag(cardId, startX, startY, sourceEl){
   document.addEventListener('pointercancel', onUp);
 }
 
-// Figures out where in the hand a card should land based on the X position
-// it was dropped at, relative to the other cards currently shown in the hand.
-function computeHandInsertIndex(dropX, excludeCardId){
+// Figures out where in the hand a card should land, treating the hand as one
+// continuous sequence regardless of how it happens to wrap onto multiple rows
+// on screen. Finds the on-screen card nearest (by straight-line distance) to
+// the drop point, then inserts before or after it depending on which side of
+// that card's centre the drop landed on. Using 2D distance (not just X) is
+// what makes this work correctly across row boundaries — a drop in row 2
+// naturally finds its nearest neighbour in row 2, not row 1.
+function computeHandInsertIndex(dropX, dropY, excludeCardId){
   const handZone = $('handZone');
   const cardEls = [...handZone.querySelectorAll('.playing-card')].filter(el => el.dataset.cardId !== String(excludeCardId));
-  for (let i = 0; i < cardEls.length; i++){
-    const rect = cardEls[i].getBoundingClientRect();
-    const center = rect.left + rect.width / 2;
-    if (dropX < center){
-      const id = Number(cardEls[i].dataset.cardId);
-      return handOrder.indexOf(id);
-    }
-  }
-  return handOrder.length; // dropped past the last card — goes at the end
+  if (cardEls.length === 0) return 0;
+
+  let nearestEl = null, nearestCx = 0, nearestDist = Infinity;
+  cardEls.forEach(el => {
+    const rect = el.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+    const dist = Math.hypot(dropX - cx, dropY - cy);
+    if (dist < nearestDist){ nearestDist = dist; nearestEl = el; nearestCx = cx; }
+  });
+
+  const nearestId = Number(nearestEl.dataset.cardId);
+  const nearestIndex = handOrder.indexOf(nearestId);
+  return dropX < nearestCx ? nearestIndex : nearestIndex + 1;
 }
 
-function applyDrop(cardId, zoneType, groupLocalId, dropX){
+function applyDrop(cardId, zoneType, groupLocalId, dropX, dropY){
   if (zoneType === 'discard'){
     if (!(state && state.yourTurn && state.hasDrawnThisTurn && !state.roundOver)){
       showToast('You can only discard on your turn, after drawing.', true);
       render();
       return;
     }
-    socket.emit('discard', { cardId });
+    discardCard(cardId);
+    render();
     return;
   }
 
-  // Remove this card from wherever it currently is (a group, or the finish slot).
+  // Remove this card from wherever it currently is (a group, or the hand order).
   clientGroups.forEach(g => { g.cardIds = g.cardIds.filter(id => id !== cardId); });
-  if (finishCardId === cardId) finishCardId = null;
   handOrder = handOrder.filter(id => id !== cardId);
 
-  if (zoneType === 'finish'){
-    finishCardId = cardId;
-  } else if (zoneType === 'group'){
+  if (zoneType === 'group'){
     const g = clientGroups.find(g => g.localId === groupLocalId);
     if (g) g.cardIds.push(cardId);
   } else if (zoneType === 'hand'){
-    const insertAt = computeHandInsertIndex(dropX, cardId);
+    const insertAt = computeHandInsertIndex(dropX, dropY, cardId);
     handOrder.splice(insertAt, 0, cardId);
   }
   render();
