@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Family Rummy — Stage 2 (ugly test build)</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 700px; margin: 20px auto; padding: 0 10px; background:#fff; color:#111; }
+  h1 { font-size: 18px; }
+  .warn { background:#fff3cd; border:1px solid #e0c36b; padding:8px; font-size:13px; margin-bottom:14px; }
+  fieldset { margin-bottom: 14px; }
+  .card { display:inline-block; border:1px solid #888; border-radius:4px; padding:4px 7px; margin:2px; font-size:14px; cursor:pointer; background:#fafafa; }
+  .card.selected { background:#c8e6c9; border-color:#2e7d32; }
+  .card.red { color:#b00; }
+  .card.black { color:#111; }
+  .card.joker { background:#ffe0b2; }
+  #groupsArea .group { border:1px dashed #999; padding:6px; margin:6px 0; }
+  button { padding:6px 12px; margin:3px 3px 3px 0; cursor:pointer; }
+  #log { background:#f2f2f2; border:1px solid #ccc; padding:8px; height:140px; overflow-y:auto; font-size:12px; white-space:pre-wrap; }
+  .row { margin: 8px 0; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:12px; }
+  .badge.you { background:#c8e6c9; }
+  .badge.them { background:#eee; }
+  #scoreBox { background:#e3f2fd; border:1px solid #90caf9; padding:10px; margin:10px 0; }
+</style>
+</head>
+<body>
+
+<h1>Family Rummy — Stage 2 test build</h1>
+<div class="warn">This is deliberately plain. The point of this stage is proving the game works between two real players in two real places — not looking nice yet.</div>
+
+<div id="joinBox">
+  <fieldset>
+    <label>Your name: <input id="nameInput" type="text" maxlength="20"></label>
+    <button id="joinBtn">Join Table</button>
+  </fieldset>
+</div>
+
+<div id="lobbyBox" style="display:none;">
+  <p id="lobbyStatus"></p>
+  <button id="startBtn" style="display:none;">Start Game</button>
+</div>
+
+<div id="gameBox" style="display:none;">
+  <div class="row" id="playersRow"></div>
+  <div class="row"><strong>Cut joker rank:</strong> <span id="cutJokerLabel"></span></div>
+  <div class="row"><strong>Stock:</strong> <span id="stockCount"></span> cards &nbsp; | &nbsp;
+    <strong>Discard top:</strong> <span id="discardTop"></span></div>
+  <div class="row" id="turnLabel" style="font-weight:bold;"></div>
+
+  <div class="row">
+    <button id="drawStockBtn">Draw from Stock</button>
+    <button id="drawDiscardBtn">Draw from Discard</button>
+    <button id="dropBtn">Drop</button>
+    <button id="declareModeBtn">Arrange / Declare</button>
+  </div>
+
+  <div class="row"><strong>Your hand</strong> (click a card to select it):</div>
+  <div id="handArea"></div>
+
+  <div class="row">
+    <button id="discardSelectedBtn" style="display:none;">Discard Selected Card</button>
+  </div>
+
+  <div id="declarePanel" style="display:none;">
+    <hr>
+    <p><strong>Declare mode.</strong> One card must go to the finish slot below (this is the card you're throwing away). Assign the rest to groups.</p>
+    <div class="row">Finish-slot card: <span id="finishSlotLabel">(click a card above, then click "Send to finish slot")</span>
+      <button id="toFinishBtn">Send selected card to finish slot</button>
+    </div>
+    <div class="row">
+      <button id="addGroupBtn">+ New group</button>
+    </div>
+    <div id="groupsArea"></div>
+    <div class="row">
+      <button id="submitDeclareBtn">Submit Declare</button>
+      <button id="cancelDeclareBtn">Cancel</button>
+    </div>
+  </div>
+
+  <div id="scoreBox" style="display:none;"></div>
+
+  <div class="row"><strong>Log</strong></div>
+  <div id="log"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+let myId = null;
+let state = null;
+let selectedCardId = null;
+let finishCardId = null;
+let groups = []; // array of arrays of cardId
+let declareMode = false;
+
+const $ = (id) => document.getElementById(id);
+
+$('joinBtn').onclick = () => {
+  const name = $('nameInput').value.trim() || 'Player';
+  socket.emit('join', { name });
+  $('joinBox').style.display = 'none';
+  $('lobbyBox').style.display = 'block';
+};
+
+$('startBtn').onclick = () => socket.emit('startGame');
+
+$('drawStockBtn').onclick = () => socket.emit('draw', { source: 'stock' });
+$('drawDiscardBtn').onclick = () => socket.emit('draw', { source: 'discard' });
+$('dropBtn').onclick = () => { if (confirm('Drop out of this round?')) socket.emit('drop'); };
+
+$('discardSelectedBtn').onclick = () => {
+  if (!selectedCardId) { alert('Select a card first.'); return; }
+  socket.emit('discard', { cardId: selectedCardId });
+  selectedCardId = null;
+};
+
+$('declareModeBtn').onclick = () => {
+  declareMode = true;
+  finishCardId = null;
+  groups = [];
+  $('declarePanel').style.display = 'block';
+  renderHand();
+  renderGroups();
+};
+$('cancelDeclareBtn').onclick = () => {
+  declareMode = false;
+  finishCardId = null;
+  groups = [];
+  $('declarePanel').style.display = 'none';
+  renderHand();
+};
+$('addGroupBtn').onclick = () => { groups.push([]); renderGroups(); };
+$('toFinishBtn').onclick = () => {
+  if (!selectedCardId) { alert('Select a card first.'); return; }
+  finishCardId = selectedCardId;
+  selectedCardId = null;
+  groups = groups.map(g => g.filter(id => id !== finishCardId));
+  renderHand();
+  renderGroups();
+};
+$('submitDeclareBtn').onclick = () => {
+  if (!finishCardId) { alert('Choose a finish-slot card first.'); return; }
+  socket.emit('declare', { finishCardId, groups });
+};
+
+socket.on('connect', () => { myId = socket.id; });
+
+socket.on('errorMsg', (msg) => alert(msg));
+
+socket.on('declareRejected', ({ problems }) => {
+  alert('Invalid declare (80-point penalty applied):\n\n' + problems.join('\n'));
+  declareMode = false;
+  $('declarePanel').style.display = 'none';
+  finishCardId = null;
+  groups = [];
+});
+
+socket.on('roundEnded', ({ resultText, scoreLines }) => {
+  $('scoreBox').style.display = 'block';
+  $('scoreBox').innerHTML = '<strong>' + resultText + '</strong><br>' + scoreLines.join('<br>') +
+    '<br><br><button id="playAgainBtn">Play Again</button>';
+  document.getElementById('playAgainBtn').onclick = () => socket.emit('playAgain');
+});
+
+socket.on('state', (s) => {
+  state = s;
+  render();
+});
+
+function cardLabel(c) {
+  if (!c) return '';
+  if (c.isPrintedJoker) return 'Joker';
+  return c.rank + suitSymbol(c.suit);
+}
+function suitSymbol(s) {
+  return { S: '♠', H: '♥', D: '♦', C: '♣' }[s] || '';
+}
+function cardColorClass(c) {
+  if (c.isPrintedJoker) return 'joker';
+  return (c.suit === 'H' || c.suit === 'D') ? 'red' : 'black';
+}
+
+function render() {
+  if (!state) return;
+
+  if (!state.started) {
+    $('lobbyBox').style.display = 'block';
+    $('gameBox').style.display = 'none';
+    $('lobbyStatus').textContent = `Players at this table: ${state.players.map(p=>p.name).join(', ') || '(none yet)'} (${state.players.length}/2)`;
+    $('startBtn').style.display = (state.youAreHost && state.canStart) ? 'inline-block' : 'none';
+    renderLog(state.log);
+    return;
+  }
+
+  $('lobbyBox').style.display = 'none';
+  $('gameBox').style.display = 'block';
+  $('scoreBox').style.display = state.roundOver ? 'block' : 'none';
+
+  $('playersRow').innerHTML = state.players.map(p =>
+    `<span class="badge ${p.id===myId?'you':'them'}">${p.name}${p.dropped?' (dropped)':''}: ${p.cardCount} cards${p.connected?'':' — disconnected'}</span>`
+  ).join(' ');
+
+  $('cutJokerLabel').textContent = state.cutJokerRank || '(printed jokers only)';
+  $('stockCount').textContent = state.stockCount;
+  $('discardTop').textContent = state.discardTop ? cardLabel(state.discardTop) : '(empty)';
+  $('turnLabel').textContent = state.roundOver ? 'Round over.' : (state.yourTurn ? 'Your turn.' : 'Waiting for the other player…');
+
+  const canAct = state.yourTurn && !state.roundOver;
+  $('drawStockBtn').disabled = !canAct || state.hasDrawnThisTurn;
+  $('drawDiscardBtn').disabled = !canAct || state.hasDrawnThisTurn || !state.discardTop;
+  $('dropBtn').disabled = !canAct;
+  $('declareModeBtn').disabled = !canAct || !state.hasDrawnThisTurn;
+  $('discardSelectedBtn').style.display = (canAct && state.hasDrawnThisTurn && !declareMode) ? 'inline-block' : 'none';
+
+  renderHand();
+  renderLog(state.log);
+}
+
+function renderHand() {
+  if (!state || !state.yourHand) return;
+  const groupedIds = new Set(groups.flat());
+  $('handArea').innerHTML = state.yourHand.map(c => {
+    const isFinish = c.id === finishCardId;
+    const isGrouped = groupedIds.has(c.id);
+    const sel = c.id === selectedCardId ? 'selected' : '';
+    const tag = isFinish ? ' [FINISH]' : (isGrouped ? ' [grouped]' : '');
+    return `<span class="card ${cardColorClass(c)} ${sel}" data-id="${c.id}">${cardLabel(c)}${tag}</span>`;
+  }).join('');
+  $('handArea').querySelectorAll('.card').forEach(el => {
+    el.onclick = () => {
+      const id = Number(el.dataset.id);
+      selectedCardId = (selectedCardId === id) ? null : id;
+      renderHand();
+    };
+  });
+}
+
+function renderGroups() {
+  const el = $('groupsArea');
+  $('finishSlotLabel').textContent = finishCardId
+    ? cardLabel((state.yourHand||[]).find(c=>c.id===finishCardId))
+    : '(none chosen yet)';
+  if (groups.length === 0) {
+    el.innerHTML = '<em>No groups yet — click "+ New group".</em>';
+    return;
+  }
+  el.innerHTML = groups.map((g, gi) => {
+    const cards = g.map(id => (state.yourHand||[]).find(c=>c.id===id)).filter(Boolean);
+    const label = cards.length ? cards.map(cardLabel).join(', ') : '(empty — click cards above, then "Add selected to this group")';
+    return `<div class="group">
+      <strong>Group ${gi+1}:</strong> ${label}
+      <button data-add="${gi}">Add selected card here</button>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('button[data-add]').forEach(btn => {
+    btn.onclick = () => {
+      if (!selectedCardId) { alert('Select a card in your hand first.'); return; }
+      if (selectedCardId === finishCardId) { alert('That card is in the finish slot — pick another.'); return; }
+      const gi = Number(btn.dataset.add);
+      groups = groups.map(g => g.filter(id => id !== selectedCardId)); // remove from any other group
+      groups[gi].push(selectedCardId);
+      selectedCardId = null;
+      renderHand();
+      renderGroups();
+    };
+  });
+}
+
+function renderLog(lines) {
+  const box = $('log');
+  box.textContent = (lines || []).join('\n');
+  box.scrollTop = box.scrollHeight;
+}
+</script>
+</body>
+</html>

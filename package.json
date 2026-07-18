@@ -1,0 +1,17 @@
+{
+  "name": "family-rummy-stage2",
+  "version": "0.1.0",
+  "description": "Family Rummy Online — Stage 2: two people, one ugly table.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": "18.x"
+  },
+  "dependencies": {
+    "express": "^4.22.2",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3"
+  }
+}
